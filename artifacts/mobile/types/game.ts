@@ -30,7 +30,7 @@ export interface Match {
 }
 
 export interface GameState {
-  phase: "setup" | "playing" | "ended";
+  phase: "setup" | "preview" | "playing" | "ended";
   config: GameConfig | null;
   teams: Team[];
   queue: string[];

@@ -14,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GameProvider } from "@/context/GameContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,15 +40,18 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <GameProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="match" />
-                <Stack.Screen name="leaderboard" />
-              </Stack>
-            </GameProvider>
-          </GestureHandlerRootView>
+          <ThemeProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <GameProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="preview" />
+                  <Stack.Screen name="match" />
+                  <Stack.Screen name="leaderboard" />
+                </Stack>
+              </GameProvider>
+            </GestureHandlerRootView>
+          </ThemeProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

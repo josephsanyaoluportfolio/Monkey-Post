@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Crypto from "expo-crypto";
 import React, {
   createContext,
   useCallback,
@@ -17,7 +16,8 @@ const STORAGE_KEY = "monkey_post_game_state";
 
 interface GameContextType {
   state: GameState;
-  startGame: (config: GameConfig) => void;
+  prepareGame: (config: GameConfig) => void;
+  confirmStart: () => void;
   endGame: () => void;
   handleWin: (winnerId: string) => void;
   handleDraw: () => void;
@@ -76,16 +76,6 @@ function buildTeams(config: GameConfig): { teams: Team[]; queue: string[] } {
   return { teams, queue };
 }
 
-function buildInitialMatch(queue: string[], teams: Team[]): Match | null {
-  if (queue.length < 2) return null;
-  return {
-    teamAId: queue[0],
-    teamBId: queue[1],
-    scoreA: 0,
-    scoreB: 0,
-  };
-}
-
 const DEFAULT_STATE: GameState = {
   phase: "setup",
   config: null,
@@ -108,7 +98,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         try {
           const saved: GameState = JSON.parse(raw);
-          if (saved.phase === "playing") {
+          if (saved.phase === "playing" || saved.phase === "preview") {
             setState({ ...saved, timerRunning: false });
           }
         } catch (_) {}
@@ -126,7 +116,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (!s.timerRunning || !s.timerStartedAt) {
       return Math.max(0, total - s.timerElapsedAtPause);
     }
-    const elapsed = s.timerElapsedAtPause + (Date.now() - s.timerStartedAt) / 1000;
+    const elapsed =
+      s.timerElapsedAtPause + (Date.now() - s.timerStartedAt) / 1000;
     return Math.max(0, total - elapsed);
   }, []);
 
@@ -141,10 +132,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
               whistleRef.current = true;
               playWhistle();
             }
-            return { ...prev, timerRunning: false };
+            return { ...prev, timerSeconds: 0, timerRunning: false };
           }
-          if (remaining <= 60 && Math.round(remaining) % 5 === 0) {
-            triggerVibration();
+          if (
+            remaining <= 60 &&
+            Math.round(remaining) % 5 === 0 &&
+            Platform.OS !== "web"
+          ) {
+            Vibration.vibrate(200);
           }
           return { ...prev, timerSeconds: remaining };
         });
@@ -157,12 +152,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
   }, [state.timerRunning, getRemainingSeconds]);
 
-  function triggerVibration() {
-    if (Platform.OS !== "web") {
-      Vibration.vibrate(200);
-    }
-  }
-
   function playWhistle() {
     if (Platform.OS === "web") return;
     try {
@@ -170,13 +159,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     } catch (_) {}
   }
 
-  const startGame = useCallback(
+  const prepareGame = useCallback(
     (config: GameConfig) => {
       const { teams, queue } = buildTeams(config);
-      const match = buildInitialMatch(queue, teams);
-      const activeQueue = queue.slice(2);
-      const totalDuration = config.matchDuration * 60;
-
+      const activeMatch = {
+        teamAId: queue[0],
+        teamBId: queue[1],
+        scoreA: 0,
+        scoreB: 0,
+      };
       const updatedTeams = teams.map((t, i) => {
         if (i === 0) return { ...t, post: "A" as const };
         if (i === 1) return { ...t, post: "B" as const };
@@ -184,14 +175,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       });
 
       const newState: GameState = {
-        phase: "playing",
+        phase: "preview",
         config,
         teams: updatedTeams,
-        queue: activeQueue,
-        currentMatch: match,
-        timerSeconds: totalDuration,
-        timerRunning: true,
-        timerStartedAt: Date.now(),
+        queue: queue.slice(2),
+        currentMatch: activeMatch,
+        timerSeconds: config.matchDuration * 60,
+        timerRunning: false,
+        timerStartedAt: null,
         timerElapsedAtPause: 0,
       };
       whistleRef.current = false;
@@ -201,25 +192,41 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [saveState]
   );
 
+  const confirmStart = useCallback(() => {
+    setState((prev) => {
+      const newState: GameState = {
+        ...prev,
+        phase: "playing",
+        timerRunning: true,
+        timerStartedAt: Date.now(),
+        timerElapsedAtPause: 0,
+      };
+      saveState(newState);
+      return newState;
+    });
+  }, [saveState]);
+
   const endGame = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     const newState = { ...DEFAULT_STATE };
     setState(newState);
     AsyncStorage.removeItem(STORAGE_KEY);
   }, []);
 
   const rotateAfterWin = useCallback(
-    (winnerId: string, state: GameState): GameState => {
-      if (!state.currentMatch || !state.config) return state;
-      const { teamAId, teamBId } = state.currentMatch;
+    (winnerId: string, s: GameState): GameState => {
+      if (!s.currentMatch || !s.config) return s;
+      const { teamAId, teamBId } = s.currentMatch;
       const loserId = winnerId === teamAId ? teamBId : teamAId;
 
-      const updatedTeams = state.teams.map((t) => {
-        if (t.id === winnerId) return { ...t, wins: t.wins + 1, matchesPlayed: t.matchesPlayed + 1 };
+      const updatedTeams = s.teams.map((t) => {
+        if (t.id === winnerId)
+          return { ...t, wins: t.wins + 1, matchesPlayed: t.matchesPlayed + 1 };
         if (t.id === loserId) return { ...t, matchesPlayed: t.matchesPlayed + 1 };
         return t;
       });
 
-      const newQueue = [...state.queue, loserId];
+      const newQueue = [...s.queue, loserId];
       const nextOpponentId = newQueue[0];
       const remainingQueue = newQueue.slice(1);
 
@@ -234,9 +241,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      const totalDuration = state.config.matchDuration * 60;
+      const totalDuration = s.config.matchDuration * 60;
       return {
-        ...state,
+        ...s,
         teams: updatedTeams,
         queue: remainingQueue,
         currentMatch: newMatch,
@@ -249,25 +256,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const rotateAfterDraw = useCallback((state: GameState): GameState => {
-    if (!state.currentMatch || !state.config) return state;
-    const { teamAId, teamBId } = state.currentMatch;
+  const rotateAfterDraw = useCallback((s: GameState): GameState => {
+    if (!s.currentMatch || !s.config) return s;
+    const { teamAId, teamBId } = s.currentMatch;
 
-    const updatedTeams = state.teams.map((t) => {
+    const updatedTeams = s.teams.map((t) => {
       if (t.id === teamAId || t.id === teamBId)
         return { ...t, matchesPlayed: t.matchesPlayed + 1 };
       return t;
     });
 
-    const drawTeamA = state.teams.find((t) => t.id === teamAId);
-    const drawTeamB = state.teams.find((t) => t.id === teamBId);
-
+    const drawTeamA = s.teams.find((t) => t.id === teamAId);
+    const drawTeamB = s.teams.find((t) => t.id === teamBId);
     const postAFirst =
-      drawTeamA?.post === "A" ? teamAId :
-      drawTeamB?.post === "A" ? teamBId : teamAId;
+      drawTeamA?.post === "A"
+        ? teamAId
+        : drawTeamB?.post === "A"
+        ? teamBId
+        : teamAId;
     const postBSecond = postAFirst === teamAId ? teamBId : teamAId;
 
-    const newQueue = [...state.queue, postAFirst, postBSecond];
+    const newQueue = [...s.queue, postAFirst, postBSecond];
 
     let newMatch: Match | null = null;
     if (newQueue.length >= 2) {
@@ -279,9 +288,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const totalDuration = state.config.matchDuration * 60;
+    const totalDuration = s.config.matchDuration * 60;
     return {
-      ...state,
+      ...s,
       teams: updatedTeams,
       queue: newQueue.slice(2),
       currentMatch: newMatch,
@@ -313,49 +322,51 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   }, [rotateAfterDraw, saveState]);
 
-  const incrementScore = useCallback((side: "A" | "B") => {
-    setState((prev) => {
-      if (!prev.currentMatch) return prev;
-      const updated = {
-        ...prev,
-        currentMatch: {
-          ...prev.currentMatch,
-          scoreA:
-            side === "A"
-              ? prev.currentMatch.scoreA + 1
-              : prev.currentMatch.scoreA,
-          scoreB:
-            side === "B"
-              ? prev.currentMatch.scoreB + 1
-              : prev.currentMatch.scoreB,
-        },
-      };
-      saveState(updated);
-      return updated;
-    });
-  }, [saveState]);
+  const incrementScore = useCallback(
+    (side: "A" | "B") => {
+      setState((prev) => {
+        if (!prev.currentMatch) return prev;
+        const updated = {
+          ...prev,
+          currentMatch: {
+            ...prev.currentMatch,
+            scoreA:
+              side === "A" ? prev.currentMatch.scoreA + 1 : prev.currentMatch.scoreA,
+            scoreB:
+              side === "B" ? prev.currentMatch.scoreB + 1 : prev.currentMatch.scoreB,
+          },
+        };
+        saveState(updated);
+        return updated;
+      });
+    },
+    [saveState]
+  );
 
-  const decrementScore = useCallback((side: "A" | "B") => {
-    setState((prev) => {
-      if (!prev.currentMatch) return prev;
-      const updated = {
-        ...prev,
-        currentMatch: {
-          ...prev.currentMatch,
-          scoreA:
-            side === "A"
-              ? Math.max(0, prev.currentMatch.scoreA - 1)
-              : prev.currentMatch.scoreA,
-          scoreB:
-            side === "B"
-              ? Math.max(0, prev.currentMatch.scoreB - 1)
-              : prev.currentMatch.scoreB,
-        },
-      };
-      saveState(updated);
-      return updated;
-    });
-  }, [saveState]);
+  const decrementScore = useCallback(
+    (side: "A" | "B") => {
+      setState((prev) => {
+        if (!prev.currentMatch) return prev;
+        const updated = {
+          ...prev,
+          currentMatch: {
+            ...prev.currentMatch,
+            scoreA:
+              side === "A"
+                ? Math.max(0, prev.currentMatch.scoreA - 1)
+                : prev.currentMatch.scoreA,
+            scoreB:
+              side === "B"
+                ? Math.max(0, prev.currentMatch.scoreB - 1)
+                : prev.currentMatch.scoreB,
+          },
+        };
+        saveState(updated);
+        return updated;
+      });
+    },
+    [saveState]
+  );
 
   const resetTimer = useCallback(() => {
     whistleRef.current = false;
@@ -384,6 +395,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         timerRunning: false,
         timerStartedAt: null,
         timerElapsedAtPause: elapsed,
+        timerSeconds: Math.max(
+          0,
+          (prev.config?.matchDuration ?? 5) * 60 - elapsed
+        ),
       };
       saveState(next);
       return next;
@@ -425,26 +440,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const getNextTeams = useCallback((): [Team | undefined, Team | undefined] => {
     if (!state.currentMatch) return [undefined, undefined];
-    const { teamAId, teamBId } = state.currentMatch;
-
-    if (state.config?.matchMode === "count_goals") {
-      const q = state.queue;
-      const nextA = q[0] ? state.teams.find((t) => t.id === q[0]) : undefined;
-      const nextB = q[1] ? state.teams.find((t) => t.id === q[1]) : undefined;
-      return [nextA, nextB];
-    }
-
-    const queueWithLoser = [...state.queue];
-    const winnerId = teamAId;
-    const loserId = teamBId;
-    const possibleNextOpponent = queueWithLoser[0];
-    const winnerTeam = state.teams.find((t) => t.id === winnerId);
-    const nextOpp = state.teams.find((t) => t.id === possibleNextOpponent);
-    return [winnerTeam, nextOpp];
+    const q = state.queue;
+    const nextA = q[0] ? state.teams.find((t) => t.id === q[0]) : undefined;
+    const nextB = q[1] ? state.teams.find((t) => t.id === q[1]) : undefined;
+    return [nextA, nextB];
   }, [state]);
 
   const getLeaderboard = useCallback(
-    () => [...state.teams].sort((a, b) => b.wins - a.wins || b.matchesPlayed - a.matchesPlayed),
+    () =>
+      [...state.teams].sort(
+        (a, b) => b.wins - a.wins || b.matchesPlayed - a.matchesPlayed
+      ),
     [state.teams]
   );
 
@@ -452,7 +458,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     <GameContext.Provider
       value={{
         state,
-        startGame,
+        prepareGame,
+        confirmStart,
         endGame,
         handleWin,
         handleDraw,

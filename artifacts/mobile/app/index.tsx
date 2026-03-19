@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +11,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
@@ -20,22 +18,23 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { useGame } from "@/context/GameContext";
+import { useTheme } from "@/context/ThemeContext";
 import type { GameConfig, MatchMode } from "@/types/game";
 
 const DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 10, 12, 15];
 const PLAYERS_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
 
 export default function SetupScreen() {
-  const colorScheme = useColorScheme();
+  const { colorScheme, toggleTheme } = useTheme();
   const isDark = colorScheme === "dark";
   const colors = isDark ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
-  const { startGame } = useGame();
+  const { prepareGame } = useGame();
 
   const [playersPerTeam, setPlayersPerTeam] = useState(5);
   const [matchDuration, setMatchDuration] = useState(5);
   const [matchMode, setMatchMode] = useState<MatchMode>("one_goal");
-  const [playerNames, setPlayerNames] = useState<string[]>(["", ""]);
+  const [playerNames, setPlayerNames] = useState<string[]>([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const inputRef = useRef<TextInput>(null);
 
@@ -43,9 +42,9 @@ export default function SetupScreen() {
     const name = newPlayerName.trim();
     if (!name) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPlayerNames((prev) => [...prev.filter((n) => n.trim()), name]);
+    setPlayerNames((prev) => [...prev, name]);
     setNewPlayerName("");
-    setTimeout(() => inputRef.current?.focus(), 100);
+    setTimeout(() => inputRef.current?.focus(), 50);
   }, [newPlayerName]);
 
   const removePlayer = useCallback((index: number) => {
@@ -53,24 +52,11 @@ export default function SetupScreen() {
     setPlayerNames((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const updatePlayer = useCallback((index: number, name: string) => {
-    setPlayerNames((prev) => {
-      const next = [...prev];
-      next[index] = name;
-      return next;
-    });
-  }, []);
-
-  const handleStart = useCallback(() => {
+  const handleRotate = useCallback(() => {
     const validPlayers = playerNames.filter((n) => n.trim());
     if (validPlayers.length < playersPerTeam * 2) {
-      Alert.alert(
-        "Not Enough Players",
-        `You need at least ${playersPerTeam * 2} players for 2 teams of ${playersPerTeam}.`
-      );
       return;
     }
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const config: GameConfig = {
       playersPerTeam,
@@ -78,17 +64,17 @@ export default function SetupScreen() {
       matchMode,
       playerNames: validPlayers,
     };
-    startGame(config);
-    router.replace("/match");
-  }, [playerNames, playersPerTeam, matchDuration, matchMode, startGame]);
+    prepareGame(config);
+    router.push("/preview");
+  }, [playerNames, playersPerTeam, matchDuration, matchMode, prepareGame]);
 
   const validPlayerCount = playerNames.filter((n) => n.trim()).length;
   const minPlayersNeeded = playersPerTeam * 2;
-
-  const s = styles(colors, isDark);
+  const canStart = validPlayerCount >= minPlayersNeeded;
 
   const webTop = Platform.OS === "web" ? 67 : 0;
   const webBottom = Platform.OS === "web" ? 34 : 0;
+  const s = makeStyles(colors, isDark);
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
@@ -96,24 +82,54 @@ export default function SetupScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <View
+          style={[
+            s.topBar,
+            {
+              paddingTop: insets.top + webTop + 8,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              toggleTheme();
+            }}
+            style={[s.iconBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Feather
+              name={isDark ? "sun" : "moon"}
+              size={18}
+              color={isDark ? "#F59E0B" : "#6B7280"}
+            />
+          </Pressable>
+
+          <View style={s.headerCenter}>
+            <Text style={[s.title, { color: colors.tint }]}>Monkey Post</Text>
+            <Text style={[s.subtitle, { color: colors.textSecondary }]}>
+              Football Rotation
+            </Text>
+          </View>
+
+          <View style={{ width: 38 }} />
+        </View>
+
         <ScrollView
           contentContainerStyle={[
             s.scroll,
             {
-              paddingTop: insets.top + 16 + webTop,
-              paddingBottom: insets.bottom + 80 + webBottom,
+              paddingTop: 20,
+              paddingBottom: insets.bottom + 100 + webBottom,
             },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={s.header}>
-            <Text style={s.title}>Monkey Post</Text>
-            <Text style={s.subtitle}>Football Rotation Manager</Text>
-          </View>
-
           <View style={s.section}>
-            <Text style={s.sectionLabel}>Players per Team</Text>
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>
+              Players per Team
+            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -124,6 +140,10 @@ export default function SetupScreen() {
                   key={num}
                   style={[
                     s.chip,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                    },
                     playersPerTeam === num && {
                       backgroundColor: colors.tint,
                       borderColor: colors.tint,
@@ -137,6 +157,7 @@ export default function SetupScreen() {
                   <Text
                     style={[
                       s.chipText,
+                      { color: colors.text },
                       playersPerTeam === num && { color: "#fff" },
                     ]}
                   >
@@ -148,7 +169,9 @@ export default function SetupScreen() {
           </View>
 
           <View style={s.section}>
-            <Text style={s.sectionLabel}>Match Duration (minutes)</Text>
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>
+              Match Duration (minutes)
+            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -159,6 +182,10 @@ export default function SetupScreen() {
                   key={d}
                   style={[
                     s.chip,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                    },
                     matchDuration === d && {
                       backgroundColor: colors.tint,
                       borderColor: colors.tint,
@@ -172,6 +199,7 @@ export default function SetupScreen() {
                   <Text
                     style={[
                       s.chipText,
+                      { color: colors.text },
                       matchDuration === d && { color: "#fff" },
                     ]}
                   >
@@ -183,11 +211,17 @@ export default function SetupScreen() {
           </View>
 
           <View style={s.section}>
-            <Text style={s.sectionLabel}>Match Mode</Text>
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>
+              Match Mode
+            </Text>
             <View style={s.modeRow}>
               <Pressable
                 style={[
                   s.modeCard,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                  },
                   matchMode === "one_goal" && {
                     borderColor: colors.tint,
                     backgroundColor: isDark ? "#14532d30" : "#dcfce7",
@@ -213,12 +247,13 @@ export default function SetupScreen() {
                 <Text
                   style={[
                     s.modeName,
+                    { color: colors.text },
                     matchMode === "one_goal" && { color: colors.tint },
                   ]}
                 >
                   One Goal = Out
                 </Text>
-                <Text style={s.modeDesc}>
+                <Text style={[s.modeDesc, { color: colors.textSecondary }]}>
                   First goal ends the match
                 </Text>
               </Pressable>
@@ -226,6 +261,10 @@ export default function SetupScreen() {
               <Pressable
                 style={[
                   s.modeCard,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                  },
                   matchMode === "count_goals" && {
                     borderColor: colors.tint,
                     backgroundColor: isDark ? "#14532d30" : "#dcfce7",
@@ -251,12 +290,13 @@ export default function SetupScreen() {
                 <Text
                   style={[
                     s.modeName,
+                    { color: colors.text },
                     matchMode === "count_goals" && { color: colors.tint },
                   ]}
                 >
                   Count Goals
                 </Text>
-                <Text style={s.modeDesc}>
+                <Text style={[s.modeDesc, { color: colors.textSecondary }]}>
                   Score until timer ends
                 </Text>
               </Pressable>
@@ -264,60 +304,64 @@ export default function SetupScreen() {
           </View>
 
           <View style={s.section}>
-            <View style={s.playerHeader}>
-              <Text style={s.sectionLabel}>
-                Players{" "}
-                <Text
-                  style={[
-                    s.playerCount,
-                    validPlayerCount < minPlayersNeeded
-                      ? { color: colors.danger }
-                      : { color: colors.tint },
-                  ]}
-                >
-                  ({validPlayerCount}/{minPlayersNeeded} min)
-                </Text>
+            <View style={s.playerHeaderRow}>
+              <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>
+                Players
+              </Text>
+              <Text
+                style={[
+                  s.playerCount,
+                  validPlayerCount < minPlayersNeeded
+                    ? { color: colors.danger }
+                    : { color: colors.tint },
+                ]}
+              >
+                {validPlayerCount} / {minPlayersNeeded} min
               </Text>
             </View>
 
             {playerNames.map((name, index) => (
               <View key={index} style={s.playerRow}>
-                <TextInput
-                  style={s.playerInput}
-                  value={name}
-                  onChangeText={(t) => updatePlayer(index, t)}
-                  placeholder={`Player ${index + 1}`}
-                  placeholderTextColor={colors.textSecondary}
-                  returnKeyType="next"
-                  onSubmitEditing={() => {
-                    if (index === playerNames.length - 1) {
-                      if (newPlayerName.trim()) addPlayer();
-                      else inputRef.current?.focus();
-                    }
-                  }}
-                />
+                <View style={[s.playerNum, { backgroundColor: colors.border }]}>
+                  <Text style={[s.playerNumText, { color: colors.textSecondary }]}>
+                    {index + 1}
+                  </Text>
+                </View>
+                <Text style={[s.playerNameText, { color: colors.text }]}>
+                  {name}
+                </Text>
                 <Pressable
                   onPress={() => removePlayer(index)}
                   style={s.removeBtn}
                 >
-                  <Feather name="x" size={18} color={colors.danger} />
+                  <Feather name="x" size={16} color={colors.danger} />
                 </Pressable>
               </View>
             ))}
 
-            <View style={s.playerRow}>
+            <View style={s.addRow}>
               <TextInput
                 ref={inputRef}
-                style={s.playerInput}
+                style={[
+                  s.playerInput,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                    color: colors.text,
+                  },
+                ]}
                 value={newPlayerName}
                 onChangeText={setNewPlayerName}
-                placeholder="Add player name..."
+                placeholder="Type player name..."
                 placeholderTextColor={colors.textSecondary}
                 returnKeyType="done"
                 onSubmitEditing={addPlayer}
               />
-              <Pressable onPress={addPlayer} style={[s.addBtn, { backgroundColor: colors.tint }]}>
-                <Feather name="plus" size={18} color="#fff" />
+              <Pressable
+                onPress={addPlayer}
+                style={[s.addBtn, { backgroundColor: colors.tint }]}
+              >
+                <Feather name="plus" size={20} color="#fff" />
               </Pressable>
             </View>
           </View>
@@ -333,15 +377,31 @@ export default function SetupScreen() {
             },
           ]}
         >
+          {!canStart && (
+            <Text style={[s.hint, { color: colors.danger }]}>
+              Need at least {minPlayersNeeded} players for {Math.ceil(minPlayersNeeded / playersPerTeam)} teams
+            </Text>
+          )}
           <Pressable
             style={({ pressed }) => [
               s.startBtn,
-              { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
+              {
+                backgroundColor: canStart ? colors.tint : colors.border,
+                opacity: pressed ? 0.85 : 1,
+              },
             ]}
-            onPress={handleStart}
+            onPress={handleRotate}
+            disabled={!canStart}
           >
-            <Feather name="play-circle" size={22} color="#fff" />
-            <Text style={s.startBtnText}>Start Game</Text>
+            <Feather name="shuffle" size={22} color={canStart ? "#fff" : colors.textSecondary} />
+            <Text
+              style={[
+                s.startBtnText,
+                { color: canStart ? "#fff" : colors.textSecondary },
+              ]}
+            >
+              Rotate Players
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -349,28 +409,41 @@ export default function SetupScreen() {
   );
 }
 
-const styles = (colors: typeof Colors.light, isDark: boolean) =>
+const makeStyles = (colors: typeof Colors.light, isDark: boolean) =>
   StyleSheet.create({
     root: { flex: 1 },
-    scroll: { paddingHorizontal: 20 },
-    header: { marginBottom: 28, alignItems: "center" },
+    topBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+    },
+    iconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerCenter: { alignItems: "center" },
     title: {
-      fontSize: 32,
+      fontSize: 22,
       fontFamily: "Inter_700Bold",
-      color: colors.tint,
-      letterSpacing: -0.5,
+      letterSpacing: -0.3,
     },
     subtitle: {
-      fontSize: 14,
+      fontSize: 12,
       fontFamily: "Inter_400Regular",
-      color: colors.textSecondary,
-      marginTop: 4,
+      marginTop: 1,
     },
+    scroll: { paddingHorizontal: 20 },
     section: { marginBottom: 24 },
     sectionLabel: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: "Inter_600SemiBold",
-      color: colors.textSecondary,
       textTransform: "uppercase",
       letterSpacing: 0.8,
       marginBottom: 10,
@@ -381,21 +454,13 @@ const styles = (colors: typeof Colors.light, isDark: boolean) =>
       paddingVertical: 10,
       borderRadius: 24,
       borderWidth: 1.5,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
     },
-    chipText: {
-      fontSize: 16,
-      fontFamily: "Inter_600SemiBold",
-      color: colors.text,
-    },
+    chipText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
     modeRow: { flexDirection: "row", gap: 12 },
     modeCard: {
       flex: 1,
       borderRadius: 14,
       borderWidth: 1.5,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
       padding: 14,
       gap: 6,
     },
@@ -411,57 +476,47 @@ const styles = (colors: typeof Colors.light, isDark: boolean) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    modeName: {
-      fontSize: 14,
-      fontFamily: "Inter_700Bold",
-      color: colors.text,
-    },
-    modeDesc: {
-      fontSize: 12,
-      fontFamily: "Inter_400Regular",
-      color: colors.textSecondary,
-      lineHeight: 17,
-    },
-    playerHeader: {
+    modeName: { fontSize: 14, fontFamily: "Inter_700Bold" },
+    modeDesc: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+    playerHeaderRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: 10,
     },
-    playerCount: {
-      fontSize: 13,
-      fontFamily: "Inter_500Medium",
-    },
+    playerCount: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
     playerRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      marginBottom: 8,
+      gap: 10,
+      paddingVertical: 8,
+      borderBottomWidth: 0.5,
+      borderBottomColor: "rgba(128,128,128,0.12)",
     },
-    playerInput: {
-      flex: 1,
-      height: 46,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-      paddingHorizontal: 14,
-      fontSize: 16,
-      fontFamily: "Inter_400Regular",
-      color: colors.text,
-    },
-    removeBtn: {
-      width: 38,
-      height: 38,
-      borderRadius: 10,
-      backgroundColor: isDark ? "#2d1a1a" : "#fef2f2",
+    playerNum: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       alignItems: "center",
       justifyContent: "center",
     },
+    playerNumText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    playerNameText: { flex: 1, fontSize: 16, fontFamily: "Inter_500Medium" },
+    removeBtn: { padding: 6 },
+    addRow: { flexDirection: "row", gap: 10, marginTop: 10 },
+    playerInput: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      paddingHorizontal: 14,
+      fontSize: 16,
+      fontFamily: "Inter_400Regular",
+    },
     addBtn: {
-      width: 46,
-      height: 46,
-      borderRadius: 12,
+      width: 48,
+      height: 48,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -469,7 +524,9 @@ const styles = (colors: typeof Colors.light, isDark: boolean) =>
       paddingTop: 12,
       paddingHorizontal: 20,
       borderTopWidth: 1,
+      gap: 8,
     },
+    hint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
     startBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -478,9 +535,5 @@ const styles = (colors: typeof Colors.light, isDark: boolean) =>
       paddingVertical: 16,
       borderRadius: 16,
     },
-    startBtnText: {
-      fontSize: 18,
-      fontFamily: "Inter_700Bold",
-      color: "#fff",
-    },
+    startBtnText: { fontSize: 18, fontFamily: "Inter_700Bold" },
   });
