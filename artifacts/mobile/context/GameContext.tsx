@@ -10,6 +10,12 @@ import React, {
 import { Platform, Vibration } from "react-native";
 
 import Colors from "@/constants/colors";
+import {
+  cancelMatchNotifications,
+  requestNotificationPermissions,
+  scheduleMatchNotifications,
+  setupNotificationChannel,
+} from "@/utils/notifications";
 import type { GameConfig, GameState, Match, Team } from "@/types/game";
 
 const STORAGE_KEY = "monkey_post_game_state";
@@ -94,6 +100,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const whistleRef = useRef<boolean>(false);
 
   useEffect(() => {
+    setupNotificationChannel();
+    requestNotificationPermissions();
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
         try {
@@ -123,6 +131,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (state.timerRunning) {
+      const remaining = getRemainingSeconds(state);
+      scheduleMatchNotifications(remaining);
+    } else {
+      cancelMatchNotifications();
+    }
+  }, [state.timerRunning, state.timerStartedAt]);
+
+  useEffect(() => {
+    if (state.timerRunning) {
       timerRef.current = setInterval(() => {
         setState((prev) => {
           const remaining = getRemainingSeconds(prev);
@@ -134,12 +151,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             }
             return { ...prev, timerSeconds: 0, timerRunning: false };
           }
-          if (
-            remaining <= 60 &&
-            Math.round(remaining) % 5 === 0 &&
-            Platform.OS !== "web"
-          ) {
-            Vibration.vibrate(200);
+          if (remaining <= 120 && Platform.OS !== "web") {
+            const rounded = Math.round(remaining);
+            if (rounded % 6 === 0) {
+              Vibration.vibrate([0, 250, 80, 250]);
+            }
           }
           return { ...prev, timerSeconds: remaining };
         });
