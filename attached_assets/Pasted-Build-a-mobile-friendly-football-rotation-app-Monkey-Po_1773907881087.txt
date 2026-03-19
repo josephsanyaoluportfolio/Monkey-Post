@@ -1,0 +1,193 @@
+Build a mobile-friendly football rotation app (Monkey Post app) that works as a Progressive Web App (PWA) so users can install it on Android and iOS.
+
+GENERAL REQUIREMENTS:
+- Fully responsive mobile UI
+- Works offline after first load
+- Clean, fast, and easy to use during real football matches
+- No manual team picking after setup (system controlled)
+
+-----------------------------------
+
+HOME SCREEN (SETUP):
+
+Display inputs:
+
+1. Number of players per team
+   - Allow scroll selector AND manual typing
+
+2. Match timer duration
+   - Allow scroll or typing (e.g. 4, 5, 6, 7, 8 minutes)
+
+3. Match mode:
+   - Option A: "One Goal = Team Out"
+   - Option B: "Count Goals"
+
+4. Input player names
+   - Add multiple players easily
+
+LOGIC:
+- When user starts, system should:
+  - Randomly group players into teams (Team 1, Team 2, Team 3...)
+  - Based on players per team
+  - Any extra players that don’t complete a team should be added to the last team
+  - Do NOT discard any player
+
+-----------------------------------
+
+MATCH SYSTEM:
+
+- Team 1 plays Team 2 first
+- Remaining teams form a queue (Team 3, Team 4, Team 5...)
+
+Rotation rules:
+
+IF WIN:
+- Winning team stays
+- Losing team goes to back of queue
+- Next team enters
+
+IF DRAW:
+- Both teams leave
+- Next two teams from queue enter
+
+ADVANCED RULE:
+- Track "Post A" and "Post B" positions for teams
+- If two teams leave together (draw), when they return later:
+  - Team from Post A should play before Post B
+
+-----------------------------------
+
+MATCH MODE LOGIC:
+
+MODE 1: ONE GOAL = TEAM OUT
+- When a team scores:
+  - User taps WIN on that team
+  - Timer resets immediately
+  - Next match rotation happens
+- No need to wait for timer to finish
+
+MODE 2: COUNT GOALS
+- Each team has score controls (+ and - buttons or tap to increment)
+- Scores visible during match
+- At end of timer:
+  - User selects winner OR draw
+
+-----------------------------------
+
+MATCH SCREEN UI:
+
+TOP LEFT:
+- Dark mode / Light mode toggle (moon/sun icon)
+
+TOP RIGHT:
+- "End Today’s Game" button (red)
+  - Must show confirmation:
+    - Yes → reset app to home screen
+    - No → cancel
+
+-----------------------------------
+
+CENTER LAYOUT:
+
+1. CURRENT MATCH (TOP SECTION)
+- Show:
+  - Team 1 vs Team 2 (large colored cards)
+  - Player names inside each team
+
+2. TIMER SECTION (CENTER FOCUS)
+
+Layout:
+- LEFT BUTTON:
+  - Reset Timer
+  - On click → confirm:
+    "Are you sure you want to reset time?"
+    Yes → reset timer and restart countdown
+    No → cancel
+  - NOTE: Reset only affects current match timer, not scores or queue
+
+- CENTER:
+  - LARGE countdown timer (most prominent UI element)
+  - Shows minutes → seconds
+
+- RIGHT BUTTON:
+  - Pause / Play toggle
+  - Pause → stops timer
+  - Play → resumes timer
+
+-----------------------------------
+
+TIMER BEHAVIOR:
+
+- Starts when match starts
+- Runs even when app is minimized (background)
+- Alerts:
+  - At 2 minutes left → timer turns RED
+  - At 1 minute left → vibration every 5 seconds (light vibration)
+  - At 0 → sound alert (whistle)
+
+-----------------------------------
+
+MATCH ACTION BUTTONS:
+
+- Each team card has:
+  - WIN button
+
+- Center area has:
+  - DRAW button
+
+LOGIC:
+- Clicking WIN:
+  - Updates leaderboard
+  - Rotates teams
+  - Resets timer
+- Clicking DRAW:
+  - Both teams leave
+  - Next two teams enter
+  - Timer resets
+
+-----------------------------------
+
+NEXT MATCH PREVIEW:
+
+- Always show below current match:
+  "Next: Team X vs Team Y"
+
+- Must update automatically
+
+-----------------------------------
+
+LEADERBOARD:
+
+Track:
+- Wins
+- Matches played
+
+Display:
+- Sorted by wins
+- Show team names and players
+
+-----------------------------------
+
+TEAM IDENTIFICATION:
+
+- Each team must have:
+  - Unique color
+  - Label (Team 1, Team 2, etc.)
+  - Player list
+
+-----------------------------------
+
+EXTRA:
+
+- Keep UI very simple and touch-friendly
+- Large buttons for outdoor usage
+- Fast transitions between matches
+
+-----------------------------------
+
+OUTPUT:
+
+- Build using React (or React + Vite)
+- Make installable as PWA
+- Include service worker for offline support
+- Clean modular code
