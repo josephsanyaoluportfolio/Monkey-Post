@@ -333,7 +333,7 @@ export default function MatchScreen() {
               </Text>
             </View>
           )}
-          {isRed && remaining > 0 && (
+          {isRed && remaining > 0 && state.timerRunning && (
             <View style={[s.timerWarning, { backgroundColor: isDark ? "#3d1010" : "#fef2f2" }]}>
               <Feather name="alert-circle" size={13} color={colors.timerRed} />
               <Text style={[s.timerWarningText, { color: colors.timerRed }]}>
@@ -342,6 +342,23 @@ export default function MatchScreen() {
             </View>
           )}
         </View>
+
+        {/* Start Timer banner — shown after each rotation */}
+        {!state.timerRunning && remaining > 0 && (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              resumeTimer();
+            }}
+            style={({ pressed }) => [
+              s.startTimerBanner,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Feather name="play-circle" size={22} color="#fff" />
+            <Text style={s.startTimerBannerText}>Teams ready? Start Timer</Text>
+          </Pressable>
+        )}
 
         {/* Draw */}
         <Pressable
@@ -636,6 +653,28 @@ const makeStyles = (colors: typeof Colors.light, isDark: boolean) =>
       borderRadius: 20,
     },
     timerWarningText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+
+    startTimerBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      backgroundColor: "#16a34a",
+      paddingVertical: 14,
+      paddingHorizontal: 28,
+      borderRadius: 16,
+      marginTop: 4,
+      shadowColor: "#16a34a",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    startTimerBannerText: {
+      fontSize: 16,
+      fontFamily: "Inter_700Bold",
+      color: "#fff",
+    },
 
     drawBtn: {
       flexDirection: "row",

@@ -248,8 +248,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         queue: remainingQueue,
         currentMatch: newMatch,
         timerSeconds: totalDuration,
-        timerRunning: true,
-        timerStartedAt: Date.now(),
+        timerRunning: false,
+        timerStartedAt: null,
         timerElapsedAtPause: 0,
       };
     },
@@ -295,8 +295,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       queue: newQueue.slice(2),
       currentMatch: newMatch,
       timerSeconds: totalDuration,
-      timerRunning: true,
-      timerStartedAt: Date.now(),
+      timerRunning: false,
+      timerStartedAt: null,
       timerElapsedAtPause: 0,
     };
   }, []);
