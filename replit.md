@@ -94,3 +94,21 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+### `artifacts/mobile` (`@workspace/mobile`)
+
+Expo React Native app — **Monkey Post** football rotation manager.
+
+- Entry: `app/index.tsx` (setup screen), `app/preview.tsx`, `app/match.tsx`, `app/leaderboard.tsx`
+- State: `context/GameContext.tsx` (all game logic + timer), `context/ThemeContext.tsx` (dark/light mode)
+- Notifications: `utils/notifications.ts` (expo-notifications, schedules 2-min + time-up alerts)
+- Styles: `constants/colors.ts` (green football theme, dark/light palettes)
+- Dev: `pnpm --filter @workspace/mobile run dev` — starts Expo dev server (Expo Go + web)
+
+**Vercel web deployment** (`vercel.json` at workspace root):
+- Build command: `pnpm --filter @workspace/mobile exec expo export --platform web --output-dir dist`
+- Output directory: `artifacts/mobile/dist`
+- `index.html` is at the root of the output (= root of deployed site)
+- SPA rewrites in `vercel.json` handle Expo Router navigation routes
+- No env vars needed — app is fully self-contained (AsyncStorage only)
+- Rebuild dist after code changes: `cd artifacts/mobile && pnpm exec expo export --platform web --output-dir dist`
