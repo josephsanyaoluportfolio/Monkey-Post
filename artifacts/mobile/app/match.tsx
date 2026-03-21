@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  BackHandler,
   Platform,
   Pressable,
   ScrollView,
@@ -66,6 +67,13 @@ export default function MatchScreen() {
       router.replace("/");
     }
   }, [state.phase]);
+
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+      return () => sub.remove();
+    }
+  }, []);
 
   useEffect(() => {
     if (isPulsing && state.timerRunning) {

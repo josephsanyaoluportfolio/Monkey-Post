@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,7 +10,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,7 +27,16 @@ export default function SetupScreen() {
   const isDark = colorScheme === "dark";
   const colors = isDark ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
-  const { prepareGame } = useGame();
+  const { prepareGame, state, stateLoaded } = useGame();
+
+  useEffect(() => {
+    if (!stateLoaded) return;
+    if (state.phase === "playing") {
+      router.replace("/match");
+    } else if (state.phase === "preview") {
+      router.replace("/preview");
+    }
+  }, [stateLoaded, state.phase]);
 
   const [playersPerTeam, setPlayersPerTeam] = useState(5);
   const [matchDuration, setMatchDuration] = useState(5);
@@ -65,7 +72,7 @@ export default function SetupScreen() {
       playerNames: validPlayers,
     };
     prepareGame(config);
-    router.push("/preview");
+    router.replace("/preview");
   }, [playerNames, playersPerTeam, matchDuration, matchMode, prepareGame]);
 
   const validPlayerCount = playerNames.filter((n) => n.trim()).length;

@@ -22,6 +22,7 @@ const STORAGE_KEY = "monkey_post_game_state";
 
 interface GameContextType {
   state: GameState;
+  stateLoaded: boolean;
   prepareGame: (config: GameConfig) => void;
   confirmStart: () => void;
   endGame: () => void;
@@ -96,6 +97,7 @@ const DEFAULT_STATE: GameState = {
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
+  const [stateLoaded, setStateLoaded] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const whistleRef = useRef<boolean>(false);
 
@@ -111,7 +113,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (_) {}
       }
-    });
+      setStateLoaded(true);
+    }).catch(() => setStateLoaded(true));
   }, []);
 
   const saveState = useCallback((s: GameState) => {
@@ -474,6 +477,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     <GameContext.Provider
       value={{
         state,
+        stateLoaded,
         prepareGame,
         confirmStart,
         endGame,
