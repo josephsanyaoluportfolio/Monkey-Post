@@ -81,7 +81,7 @@ export default function PreviewScreen() {
     router.replace("/");
   };
 
-  const webTop = Platform.OS === "web" ? 67 : 0;
+  const webTop = 0;
   const webBottom = Platform.OS === "web" ? 34 : 0;
   const s = makeStyles(colors, isDark);
 

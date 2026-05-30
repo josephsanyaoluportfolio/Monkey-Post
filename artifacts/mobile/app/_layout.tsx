@@ -9,6 +9,7 @@ import { Feather } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -29,6 +30,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
+      if (Platform.OS === "web" && typeof window !== "undefined" && typeof (window as any).__mpHideSplash === "function") {
+        (window as any).__mpHideSplash();
+      }
     }
   }, [fontsLoaded, fontError]);
 
