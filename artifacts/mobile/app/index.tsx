@@ -21,7 +21,7 @@ import { useTheme } from "@/context/ThemeContext";
 import type { GameConfig, MatchMode } from "@/types/game";
 
 const DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 10, 12, 15];
-const PLAYERS_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
+const PLAYERS_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 export default function SetupScreen() {
   const { colorScheme, toggleTheme } = useTheme();
@@ -62,6 +62,9 @@ export default function SetupScreen() {
   const [playersPerTeam, setPlayersPerTeam] = useState(5);
   const [matchDuration, setMatchDuration] = useState(5);
   const [matchMode, setMatchMode] = useState<MatchMode>("one_goal");
+  const [showCustomDurationModal, setShowCustomDurationModal] = useState(false);
+  const [customDurationText, setCustomDurationText] = useState("");
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [playerNames, setPlayerNames] = useState<string[]>([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const inputRef = useRef<TextInput>(null);
@@ -100,7 +103,7 @@ export default function SetupScreen() {
   const minPlayersNeeded = playersPerTeam * 2;
   const canStart = validPlayerCount >= minPlayersNeeded;
 
-  const webTop = Platform.OS === "web" ? 67 : 0;
+  const webTop = 0;
   const webBottom = Platform.OS === "web" ? 34 : 0;
   const s = makeStyles(colors, isDark);
 
@@ -225,6 +228,90 @@ export default function SetupScreen() {
         </View>
       </Modal>
 
+      {/* Custom Duration Modal */}
+      <Modal
+        visible={showCustomDurationModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowCustomDurationModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View
+            style={[
+              s.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View style={s.modalIconRow}>
+              <View
+                style={[s.modalIconCircle, { backgroundColor: isDark ? "#14532d30" : "#dcfce7" }]}
+              >
+                <Feather name="clock" size={28} color={colors.tint} />
+              </View>
+            </View>
+            <Text style={[s.modalTitle, { color: colors.text }]}>
+              Custom Duration
+            </Text>
+            <Text style={[s.modalMessage, { color: colors.textSecondary }]}>
+              Enter the number of minutes (1–45)
+            </Text>
+            <TextInput
+              style={[
+                s.playerInput,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                  color: colors.text,
+                  textAlign: "center",
+                  fontSize: 24,
+                  fontFamily: "Inter_700Bold",
+                  marginTop: 4,
+                },
+              ]}
+              value={customDurationText}
+              onChangeText={setCustomDurationText}
+              keyboardType="number-pad"
+              placeholder="e.g. 20"
+              placeholderTextColor={colors.textSecondary}
+              maxLength={2}
+              autoFocus
+            />
+            <View style={s.modalButtons}>
+              <Pressable
+                style={({ pressed }) => [
+                  s.modalBtnPrimary,
+                  { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
+                ]}
+                onPress={() => {
+                  const val = parseInt(customDurationText, 10);
+                  if (!isNaN(val) && val >= 1 && val <= 45) {
+                    Haptics.selectionAsync();
+                    setMatchDuration(val);
+                    setIsCustomDuration(true);
+                    setShowCustomDurationModal(false);
+                  }
+                }}
+              >
+                <Feather name="check" size={18} color="#fff" />
+                <Text style={s.modalBtnPrimaryText}>Set Duration</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  s.modalBtnSecondary,
+                  { borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
+                ]}
+                onPress={() => setShowCustomDurationModal(false)}
+              >
+                <Text style={[s.modalBtnSecondaryText, { color: colors.text }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -333,7 +420,7 @@ export default function SetupScreen() {
                       borderColor: colors.border,
                       backgroundColor: colors.card,
                     },
-                    matchDuration === d && {
+                    matchDuration === d && !isCustomDuration && {
                       backgroundColor: colors.tint,
                       borderColor: colors.tint,
                     },
@@ -341,19 +428,55 @@ export default function SetupScreen() {
                   onPress={() => {
                     Haptics.selectionAsync();
                     setMatchDuration(d);
+                    setIsCustomDuration(false);
                   }}
                 >
                   <Text
                     style={[
                       s.chipText,
                       { color: colors.text },
-                      matchDuration === d && { color: "#fff" },
+                      matchDuration === d && !isCustomDuration && { color: "#fff" },
                     ]}
                   >
                     {d}
                   </Text>
                 </Pressable>
               ))}
+
+              {isCustomDuration && (
+                <Pressable
+                  style={[
+                    s.chip,
+                    { borderColor: colors.tint, backgroundColor: colors.tint },
+                  ]}
+                  onPress={() => {
+                    setCustomDurationText(String(matchDuration));
+                    setShowCustomDurationModal(true);
+                  }}
+                >
+                  <Text style={[s.chipText, { color: "#fff" }]}>
+                    {matchDuration}
+                  </Text>
+                </Pressable>
+              )}
+
+              <Pressable
+                style={[
+                  s.chip,
+                  {
+                    borderColor: colors.tint,
+                    backgroundColor: "transparent",
+                    paddingHorizontal: 14,
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setCustomDurationText("");
+                  setShowCustomDurationModal(true);
+                }}
+              >
+                <Feather name="plus" size={18} color={colors.tint} />
+              </Pressable>
             </ScrollView>
           </View>
 
