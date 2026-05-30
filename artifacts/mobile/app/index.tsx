@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -27,16 +28,36 @@ export default function SetupScreen() {
   const isDark = colorScheme === "dark";
   const colors = isDark ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
-  const { prepareGame, state, stateLoaded } = useGame();
+  const { prepareGame, state, stateLoaded, endGame } = useGame();
+
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [showEndConfirmModal, setShowEndConfirmModal] = useState(false);
 
   useEffect(() => {
     if (!stateLoaded) return;
+    if (state.phase === "playing" || state.phase === "preview") {
+      setShowResumeModal(true);
+    }
+  }, [stateLoaded, state.phase]);
+
+  const handleResume = useCallback(() => {
+    setShowResumeModal(false);
     if (state.phase === "playing") {
       router.replace("/match");
     } else if (state.phase === "preview") {
       router.replace("/preview");
     }
-  }, [stateLoaded, state.phase]);
+  }, [state.phase]);
+
+  const handleEndFromModal = useCallback(() => {
+    setShowResumeModal(false);
+    setShowEndConfirmModal(true);
+  }, []);
+
+  const handleConfirmEnd = useCallback(() => {
+    setShowEndConfirmModal(false);
+    endGame();
+  }, [endGame]);
 
   const [playersPerTeam, setPlayersPerTeam] = useState(5);
   const [matchDuration, setMatchDuration] = useState(5);
@@ -85,6 +106,125 @@ export default function SetupScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
+      {/* Resume Match Modal */}
+      <Modal
+        visible={showResumeModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View style={s.modalOverlay}>
+          <View
+            style={[
+              s.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View style={[s.modalIconRow]}>
+              <View
+                style={[s.modalIconCircle, { backgroundColor: isDark ? "#14532d30" : "#dcfce7" }]}
+              >
+                <Text style={s.modalEmoji}>⚽</Text>
+              </View>
+            </View>
+            <Text style={[s.modalTitle, { color: colors.text }]}>
+              Match in Progress
+            </Text>
+            <Text style={[s.modalMessage, { color: colors.textSecondary }]}>
+              You have an active match. Resume where you left off?
+            </Text>
+            <View style={s.modalButtons}>
+              <Pressable
+                style={({ pressed }) => [
+                  s.modalBtnPrimary,
+                  { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
+                ]}
+                onPress={handleResume}
+              >
+                <Feather name="play-circle" size={18} color="#fff" />
+                <Text style={s.modalBtnPrimaryText}>Resume Match</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  s.modalBtnSecondary,
+                  {
+                    borderColor: colors.danger,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+                onPress={handleEndFromModal}
+              >
+                <Feather name="x-circle" size={16} color={colors.danger} />
+                <Text style={[s.modalBtnSecondaryText, { color: colors.danger }]}>
+                  End Game
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Game Confirmation Modal */}
+      <Modal
+        visible={showEndConfirmModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowEndConfirmModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View
+            style={[
+              s.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View style={s.modalIconRow}>
+              <View
+                style={[s.modalIconCircle, { backgroundColor: isDark ? "#3d101030" : "#fef2f2" }]}
+              >
+                <Feather name="alert-triangle" size={28} color={colors.danger} />
+              </View>
+            </View>
+            <Text style={[s.modalTitle, { color: colors.text }]}>
+              Quit and Start Over?
+            </Text>
+            <Text style={[s.modalMessage, { color: colors.textSecondary }]}>
+              This will end the current match and clear all progress. This cannot be undone.
+            </Text>
+            <View style={s.modalButtons}>
+              <Pressable
+                style={({ pressed }) => [
+                  s.modalBtnPrimary,
+                  { backgroundColor: colors.danger, opacity: pressed ? 0.85 : 1 },
+                ]}
+                onPress={handleConfirmEnd}
+              >
+                <Text style={s.modalBtnPrimaryText}>Yes, Start Over</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  s.modalBtnSecondary,
+                  {
+                    borderColor: colors.border,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+                onPress={() => {
+                  setShowEndConfirmModal(false);
+                  setShowResumeModal(true);
+                }}
+              >
+                <Text style={[s.modalBtnSecondaryText, { color: colors.text }]}>
+                  No, Go Back
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -386,7 +526,8 @@ export default function SetupScreen() {
         >
           {!canStart && (
             <Text style={[s.hint, { color: colors.danger }]}>
-              Need at least {minPlayersNeeded} players for {Math.ceil(minPlayersNeeded / playersPerTeam)} teams
+              Need at least {minPlayersNeeded} players for{" "}
+              {Math.ceil(minPlayersNeeded / playersPerTeam)} teams
             </Text>
           )}
           <Pressable
@@ -400,7 +541,11 @@ export default function SetupScreen() {
             onPress={handleRotate}
             disabled={!canStart}
           >
-            <Feather name="shuffle" size={22} color={canStart ? "#fff" : colors.textSecondary} />
+            <Feather
+              name="shuffle"
+              size={22}
+              color={canStart ? "#fff" : colors.textSecondary}
+            />
             <Text
               style={[
                 s.startBtnText,
@@ -543,4 +688,80 @@ const makeStyles = (colors: typeof Colors.light, isDark: boolean) =>
       borderRadius: 16,
     },
     startBtnText: { fontSize: 18, fontFamily: "Inter_700Bold" },
+
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+    },
+    modalCard: {
+      width: "100%",
+      maxWidth: 360,
+      borderRadius: 24,
+      borderWidth: 1,
+      padding: 28,
+      gap: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 20,
+      elevation: 12,
+    },
+    modalIconRow: {
+      alignItems: "center",
+      marginBottom: 4,
+    },
+    modalIconCircle: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modalEmoji: {
+      fontSize: 32,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontFamily: "Inter_700Bold",
+      textAlign: "center",
+    },
+    modalMessage: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      textAlign: "center",
+      lineHeight: 20,
+    },
+    modalButtons: {
+      gap: 10,
+      marginTop: 8,
+    },
+    modalBtnPrimary: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 15,
+      borderRadius: 14,
+    },
+    modalBtnPrimaryText: {
+      fontSize: 16,
+      fontFamily: "Inter_700Bold",
+      color: "#fff",
+    },
+    modalBtnSecondary: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 13,
+      borderRadius: 14,
+      borderWidth: 1.5,
+    },
+    modalBtnSecondaryText: {
+      fontSize: 15,
+      fontFamily: "Inter_600SemiBold",
+    },
   });

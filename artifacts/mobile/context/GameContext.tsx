@@ -104,17 +104,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setupNotificationChannel();
     requestNotificationPermissions();
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) {
-        try {
-          const saved: GameState = JSON.parse(raw);
-          if (saved.phase === "playing" || saved.phase === "preview") {
-            setState({ ...saved, timerRunning: false });
-          }
-        } catch (_) {}
-      }
-      setStateLoaded(true);
-    }).catch(() => setStateLoaded(true));
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        if (raw) {
+          try {
+            const saved: GameState = JSON.parse(raw);
+            if (saved.phase === "playing" || saved.phase === "preview") {
+              setState({ ...saved, timerRunning: false });
+            }
+          } catch (_) {}
+        }
+        setStateLoaded(true);
+      })
+      .catch(() => setStateLoaded(true));
   }, []);
 
   const saveState = useCallback((s: GameState) => {
@@ -170,6 +172,46 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [state.timerRunning, getRemainingSeconds]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setState((prev) => {
+          if (!prev.timerRunning || !prev.timerStartedAt) return prev;
+          const remaining = getRemainingSeconds(prev);
+          if (remaining <= 0) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (!whistleRef.current) {
+              whistleRef.current = true;
+            }
+            return { ...prev, timerSeconds: 0, timerRunning: false };
+          }
+          return { ...prev, timerSeconds: remaining };
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [getRemainingSeconds]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (state.phase === "playing" || state.phase === "preview") {
+        e.preventDefault();
+        e.returnValue =
+          "You have an active match in progress. Are you sure you want to leave?";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [state.phase]);
 
   function playWhistle() {
     if (Platform.OS === "web") return;
@@ -350,9 +392,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           currentMatch: {
             ...prev.currentMatch,
             scoreA:
-              side === "A" ? prev.currentMatch.scoreA + 1 : prev.currentMatch.scoreA,
+              side === "A"
+                ? prev.currentMatch.scoreA + 1
+                : prev.currentMatch.scoreA,
             scoreB:
-              side === "B" ? prev.currentMatch.scoreB + 1 : prev.currentMatch.scoreB,
+              side === "B"
+                ? prev.currentMatch.scoreB + 1
+                : prev.currentMatch.scoreB,
           },
         };
         saveState(updated);
