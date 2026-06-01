@@ -1,8 +1,9 @@
 {
-  "installCommand": "pnpm install --no-frozen-lockfile",
+  "installCommand": "npm install -g pnpm@10.26.1 && pnpm install --no-frozen-lockfile",
   "buildCommand": "node artifacts/mobile/scripts/build.js",
   "outputDirectory": "artifacts/mobile/dist",
   "framework": null,
+  "nodeVersion": "20",
   "rewrites": [
     { "source": "/sw.js", "destination": "/sw.js" },
     { "source": "/manifest.json", "destination": "/manifest.json" },
