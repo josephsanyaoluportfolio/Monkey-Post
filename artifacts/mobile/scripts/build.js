@@ -66,6 +66,12 @@ function copyPwaAssets(basePath) {
   fs.writeFileSync(path.join(distDir, "manifest.json"), manifest);
   console.log("Written manifest.json");
 
+  const robotsSrc = path.join(publicDir, "robots.txt");
+  if (fs.existsSync(robotsSrc)) {
+    fs.copyFileSync(robotsSrc, path.join(distDir, "robots.txt"));
+    console.log("Copied robots.txt");
+  }
+
   const iconSrc = path.join(projectRoot, "assets", "images", "icon.png");
   if (fs.existsSync(iconSrc)) {
     fs.copyFileSync(iconSrc, path.join(distDir, "icon-192.png"));
@@ -283,6 +289,20 @@ function patchIndexHtml(basePath) {
 
   if (basePath) {
     html = html.replace(/="\/(?!\/)/g, `="${basePath}/`);
+  }
+
+  // Fix empty title injected by Expo
+  html = html.replace(
+    /<title[^>]*><\/title>/,
+    "<title>Monkey Post \u2013 Football Rotation</title>"
+  );
+
+  // Inject meta description right after charset
+  if (!html.includes('name="description"')) {
+    html = html.replace(
+      '<meta charSet="utf-8"/>',
+      '<meta charSet="utf-8"/>\n  <meta name="description" content="Monkey Post is a free football rotation app for fair team play. Randomise teams, track scores, and manage player rotations \u2014 works offline as a PWA." />'
+    );
   }
 
   const pwaHead = `
