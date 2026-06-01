@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "eJRFxptx42d7hJixq1VNr"
+uri = "file://monkey-post.tar.gz"
+type = "unspecified"
+title = "monkey-post.tar.gz — Full project source (53 MB)"
