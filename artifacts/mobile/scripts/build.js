@@ -45,7 +45,7 @@ function runExpoExport(publicUrl) {
   };
 
   execSync(
-    `pnpm exec expo export --platform web --output-dir dist`,
+    `npx expo export --platform web --output-dir dist`,
     {
       cwd: projectRoot,
       stdio: "inherit",
