@@ -100,6 +100,15 @@ function getSplashHtml(basePath) {
       from { transform: translate(0,0)   rotate(0deg); }
       to   { transform: translate(138px,-28px) rotate(360deg); }
     }
+    #mp-net { transform-box: fill-box; transform-origin: center top; animation: mpNetShake 2.8s ease-out 1.8s infinite; }
+    @keyframes mpNetShake {
+      0%          { transform: skewX(0deg) scaleX(1); }
+      5%          { transform: skewX(-6deg) scaleX(1.02); }
+      10%         { transform: skewX(5deg) scaleX(0.99); }
+      15%         { transform: skewX(-3deg) scaleX(1.01); }
+      20%         { transform: skewX(1deg) scaleX(1); }
+      25%, 100%   { transform: skewX(0deg) scaleX(1); }
+    }
     .mp-title {
       color: #4ade80; font-size: 38px; font-weight: 800; margin: 4px 0 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
@@ -133,20 +142,31 @@ function getSplashHtml(basePath) {
   <div id="mp-splash">
     <div class="mp-inner">
       <svg id="mp-scene" viewBox="0 0 280 185" xmlns="http://www.w3.org/2000/svg">
+        <defs><clipPath id="gc"><rect x="200" y="93" width="61" height="72"/></clipPath></defs>
         <!-- Ground -->
         <rect x="0" y="165" width="280" height="20" fill="#1a2e1a" rx="2"/>
         <line x1="15" y1="164" x2="265" y2="164" stroke="#2d5a27" stroke-width="2"/>
 
-        <!-- Goal post -->
-        <rect x="220" y="90" width="5"  height="74" fill="#d1d5db" rx="2"/>
-        <rect x="242" y="90" width="5"  height="74" fill="#d1d5db" rx="2"/>
-        <rect x="218" y="88" width="31" height="6"  fill="#d1d5db" rx="2"/>
-        <!-- Net -->
-        <line x1="225" y1="94" x2="242" y2="164" stroke="#4b5563" stroke-width="0.8"/>
-        <line x1="233" y1="94" x2="242" y2="164" stroke="#4b5563" stroke-width="0.8"/>
-        <line x1="225" y1="110" x2="242" y2="115" stroke="#4b5563" stroke-width="0.8"/>
-        <line x1="225" y1="130" x2="242" y2="135" stroke="#4b5563" stroke-width="0.8"/>
-        <line x1="225" y1="150" x2="242" y2="152" stroke="#4b5563" stroke-width="0.8"/>
+        <!-- White net grid inside goal (clipped) -->
+        <g id="mp-net" clip-path="url(#gc)">
+          <rect x="200" y="93" width="61" height="72" fill="rgba(20,40,20,0.25)"/>
+          <line x1="200" y1="102" x2="261" y2="102" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="200" y1="114" x2="261" y2="114" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="200" y1="126" x2="261" y2="126" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="200" y1="138" x2="261" y2="138" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="200" y1="150" x2="261" y2="150" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="200" y1="162" x2="261" y2="162" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="211" y1="93" x2="211" y2="165" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="222" y1="93" x2="222" y2="165" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="233" y1="93" x2="233" y2="165" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="244" y1="93" x2="244" y2="165" stroke="white" stroke-width="1" opacity="0.85"/>
+          <line x1="255" y1="93" x2="255" y2="165" stroke="white" stroke-width="1" opacity="0.85"/>
+        </g>
+        <!-- Wide rectangular goal posts (in front of net) -->
+        <rect x="195" y="91" width="6" height="74" fill="#e5e7eb" rx="2"/>
+        <rect x="260" y="91" width="6" height="74" fill="#e5e7eb" rx="2"/>
+        <rect x="194" y="86" width="73" height="7" fill="#e5e7eb" rx="2"/>
+        <rect x="196" y="163" width="63" height="3" fill="#9ca3af" rx="1"/>
 
         <!-- Football (bounces from monkey to goal) -->
         <g id="mp-ball">
