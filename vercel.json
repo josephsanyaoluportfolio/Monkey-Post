@@ -1,10 +1,28 @@
 {
-  "buildCommand": "pnpm --filter @workspace/mobile exec expo export --platform web --output-dir dist",
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "node artifacts/mobile/scripts/build.js",
   "outputDirectory": "artifacts/mobile/dist",
+  "framework": null,
   "rewrites": [
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/robots.txt", "destination": "/robots.txt" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
     {
       "source": "/_expo/static/(.*)",
       "headers": [
